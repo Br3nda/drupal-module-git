@@ -34,8 +34,10 @@ function git_nodeapi(&$node, $op, $teaser, $page) {
 
 function git_commit_view($node, $teaser, $page) {
   drupal_set_message(__FUNCTION__);
-  $git = git_get_git($repoid);
+  $repo = git_get_commit_from_nid($node->nid);
+//   $git = git_get_git($repoid);
 //   $node->content['diff']
+  return $node;
 }
 
 
@@ -44,11 +46,13 @@ function git_get_git($repo) {
     //load the pear module
     require_once 'VersionControl/Git.php';
     $git = new VersionControl_Git_Util_Command($repo->location);
+    return $git;
+
   }
   catch (Exception $e) {
     drupal_set_message($e->getMessage(), 'error');
+    return false;
   }
-  return $git;
   
 }
 
@@ -83,8 +87,8 @@ function git_menu() {
   return $items;
 }
 
-function git_get_repo_from_nid($nid) {
-//   return db_fetch_object(db_query("SELECT * FROM {git_
+function git_get_commit_from_nid($nid) {
+  return db_fetch_object(db_query("SELECT * FROM {git_commits} WHERE nid=%d", $nid));
 }
 
 function git_parse_now($repoid) {
@@ -123,7 +127,7 @@ function git_parse_now($repoid) {
       drupal_write_record('git_commits', $commit);
       drupal_set_message("New node:". l($c->getTree(), 'node/'. $node->nid));
 
-      $gerund->commitid = db_last_insert_id();
+      $gerund->commitid = db_last_insert_id('git_commits');
     }
     $gerund->repoid = $repoid;
 
