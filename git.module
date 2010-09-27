@@ -11,6 +11,53 @@ function git_nodeinfo() {
     );
 }
 
+/**
+ * I
+ */
+function git_nodeapi(&$node, $op, $teaser, $page) {
+  if (!isset($node->nid)) {
+    return;
+  }
+
+  switch ($op) {
+    case 'delete':
+      //delete where there is no node.. THIS WON'T SCALE
+      //how to get around drupal's lack of referential integrity?
+      db_query('DELETE FROM {git_commits} WHERE nid =%d);', $node->nid);
+    break;
+    case 'view':
+      if($node->type == 'git_commit')
+	git_commit_view($node, $teaser, $page);
+    break;
+  }
+}
+
+function git_commit_view($node, $teaser, $page) {
+  drupal_set_message(__FUNCTION__);
+  $git = git_get_git($repoid);
+//   $node->content['diff']
+}
+
+
+function git_get_git($repo) {
+  try {
+    //load the pear module
+    require_once 'VersionControl/Git.php';
+    $git = new VersionControl_Git_Util_Command($repo->location);
+  }
+  catch (Exception $e) {
+    drupal_set_message($e->getMessage(), 'error');
+  }
+  return $git;
+  
+}
+
+function git_commit_node_form(&$form_state, $node) {
+}
+
+/**
+ * Implementation of hook_menu()
+ */
 function git_menu() {
   $items['admin/settings/git'] = array(
     'type' => MENU_NORMAL_ITEM,
@@ -36,6 +83,10 @@ function git_menu() {
   return $items;
 }
 
+function git_get_repo_from_nid($nid) {
+//   return db_fetch_object(db_query("SELECT * FROM {git_
+}
+
 function git_parse_now($repoid) {
   $repo = _git_get_repo($repoid);
   if (!$repo) {
@@ -55,6 +106,7 @@ function git_parse_now($repoid) {
 
     if ($existing) {
       drupal_set_message("Existing node:" . l($c->getTree(), 'node/'. $existing->nid));
+      $gerund->commitid = $existing->commitid;
     }
     else {
       $node->title = $c->getTree();
@@ -62,6 +114,7 @@ function git_parse_now($repoid) {
       $node->created = $c->getCreatedAt();
 
       node_save($node);
+      
       $commit->hash = $c->getTree();
       $commit->author = $c->getAuthor();
       $commit->message = $c->getMessage();
@@ -69,7 +122,12 @@ function git_parse_now($repoid) {
       $commit->nid = $node->nid;
       drupal_write_record('git_commits', $commit);
       drupal_set_message("New node:". l($c->getTree(), 'node/'. $node->nid));
+
+      $gerund->commitid = db_last_insert_id();
     }
+    $gerund->repoid = $repoid;
+
+    drupal_write_record('git_commit_repo', $gerund);
   }
 
   }
