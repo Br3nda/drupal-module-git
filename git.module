@@ -25,7 +25,24 @@ function git_menu() {
     'access arguments' => array('Edit git repos'),
     'title' => 'Add'
   );
+
+  $items['admin/settings/git/parsenow'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => 'git_parse_now',
+    'page arguments' => array(4),
+    'access arguments' => array('Edit git repos'),
+  );
+
   return $items;
+}
+
+function git_parse_now($grid) {
+  $repo = _git_get_repo($grid);
+  return print_r($repo, 1);
+}
+
+function _git_get_repo($grid) {
+  return db_fetch_object(db_query("SELECT * FROM {git_repos} WHERE grid=%d", $grid));
 }
 
 function git_admin() {
@@ -38,7 +55,10 @@ function git_admin() {
   $result = db_query("SELECT * FROM {git_repos}");
   $rows = array();
   while($g = db_fetch_object($result)) {
-    $rows[] = array($g->title);
+    $rows[] = array(
+      l($g->title, 'admin/settings/git/edit/'. $g->grid),
+      l(t('Parse now'), 'admin/settings/git/parsenow/'. $g->grid),
+    );
   }
   $output .= theme('table', $headers, $rows);
   return $output;

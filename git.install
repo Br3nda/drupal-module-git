@@ -18,5 +18,16 @@ function git_schema() {
     ),
     'primary key' => array('grid'),
   );
+
+  $schema['git_commits'] = array(
+    'fields' => array(
+      'hash' => array('type' => 'text'),
+      'author' => array('type' => 'text'),
+      'date' => array('type' => 'int'),
+      'message' => array('type' => 'text'),
+      'grid' => array('type' => 'int'),
+      'nid' => array('type' => 'nid'),
+    ),
+  );
   return $schema;
 }
