@@ -26,8 +26,9 @@ function git_schema() {
       'date' => array('type' => 'int'),
       'message' => array('type' => 'text'),
       'grid' => array('type' => 'int'),
-      'nid' => array('type' => 'nid'),
+      'nid' => array('type' => 'int'),
     ),
+    'primary key' => array('hash'),
   );
   return $schema;
 }
