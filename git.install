@@ -6,29 +6,47 @@ function git_install() {
 
 function git_uninstall() {
   drupal_uninstall_schema('git');
+  $ret = update_sql("DELETE FROM {node} WHERE type='git_commits'");
+  return $ret;
 }
 
 function git_schema() {
   $schema['git_repos'] = array(
     'fields' => array(
-      'grid' => array('type' => 'serial'),
+      'repoid' => array('type' => 'serial'),
       'title' => array('type' => 'text', 'not null' => TRUE, 'unique' => TRUE),
-      'url' => array('type' => 'text', 'not null' => TRUE, 'unique' => TRUE),
       'location' => array('type' => 'text', 'not null' => TRUE),
     ),
-    'primary key' => array('grid'),
+    'primary key' => array('repoid'),
   );
 
   $schema['git_commits'] = array(
     'fields' => array(
+      'commitid' => array('type' => 'serial'),
       'hash' => array('type' => 'text'),
       'author' => array('type' => 'text'),
       'date' => array('type' => 'int'),
       'message' => array('type' => 'text'),
-      'grid' => array('type' => 'int'),
       'nid' => array('type' => 'int'),
     ),
     'primary key' => array('hash'),
   );
+
+  $schema['git_commit_repo'] = array(
+    'fields' => array(
+      'commitid' => array('type' => 'int'),
+      'repoid' => array('type' => 'int'),
+    ),
+    'primary key' => array('commitid', 'repoid'),
+  );
+
+  $schema['git_users'] = array(
+    'fields' => array(
+      'uid' => array('type' => 'int'),
+      'author' => array('type' => 'text'),
+    ),
+    'primary keys' => array('uid', 'author'),
+    );
+
   return $schema;
 }
