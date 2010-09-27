@@ -1,4 +1,7 @@
 <?php
+/**
+ * @file Git module, imports git history into drupal
+ */
 
 function git_nodeinfo() {
   return array(
@@ -6,10 +9,15 @@ function git_nodeinfo() {
       'name' => t('Git Commit'),
       'module' => 'git',
       'description' => t("A commit on a git repo"),
+      'has_title' => TRUE,
+      'title_label' => t('Commit'),
       'has_body' => FALSE,
-      )
-    );
+      'locked' => TRUE,
+    )
+  );
 }
+
+
 
 /**
  * I
@@ -53,11 +61,13 @@ function git_commit_view($node, $teaser, $page) {
     drupal_set_message($repos[0]->location);
     $git = git_get_git($repos[0]);
   }
-  $show = $git->getCommand('show');
-  $show->addArgument($commit->hash);
-  $result = $show->execute();
+  if ($git) {
+    $show = $git->getCommand('show');
+    $show->addArgument($commit->hash);
+    $result = $show->execute();
 
-  $node->content['show'] = array('#value' => nl2br($result));
+    $node->content['show'] = array('#value' => nl2br($result));
+  }
   return $node;
 }
 
@@ -83,7 +93,8 @@ function git_get_git($repo) {
   
 }
 
-function git_commit_node_form(&$form_state, $node) {
+function git_commit_form(&$form_state, $node) {
+  
 }
 
 /**
