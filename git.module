@@ -26,25 +26,33 @@ function git_nodeapi(&$node, $op, $teaser, $page) {
       db_query('DELETE FROM {git_commits} WHERE nid =%d);', $node->nid);
     break;
     case 'view':
-      if($node->type == 'git_commit')
+      if($node->type == 'git_commit') {
 	git_commit_view($node, $teaser, $page);
+      }
     break;
   }
 }
 
 function git_commit_view($node, $teaser, $page) {
-  drupal_set_message(__FUNCTION__);
+//   drupal_set_message(__FUNCTION__);
   $commit = git_get_commit_from_nid($node->nid);
   $repos = get_repos_from_commit($commit->commitid);
-  drupal_set_message(print_r($repos, 1));
-  foreach($repos as $r) {
-    $repo_list[] = l(check_plain($r->title), 'gitrepo/'. $r->repoid);
+  if (!count($repos)) {
+    drupal_set_message(t("This commit is not in any repo we know of"), 'error');
   }
-  $node->content['repos'] = array(
-    '#value' => theme('item_list', $repo_list),
-  );
-  drupal_set_message($repos[0]->location);
-  $git = git_get_git($repos[0]);
+  else {
+//     drupal_set_message(print_r($repos, 1));
+
+    foreach($repos as $r) {
+      $repo_list[] = l(check_plain($r->title), 'gitrepo/'. $r->repoid);
+    }
+    $node->content['repos'] = array(
+      '#value' => theme('item_list', $repo_list),
+    );
+
+    drupal_set_message($repos[0]->location);
+    $git = git_get_git($repos[0]);
+  }
   $show = $git->getCommand('show');
   $show->addArgument($commit->hash);
   $result = $show->execute();
@@ -136,6 +144,10 @@ function git_parse_now($repoid) {
       $node->type = 'git_commit';
       $node->created = $c->getCreatedAt();
 
+      //TODO somethign more sensible here
+      GLOBAL $user;
+      $node->uid = $user->uid;
+
       node_save($node);
       
       $commit->hash = $c->getTree();
@@ -162,6 +174,7 @@ function git_parse_now($repoid) {
 
 function _git_get_commit($hash) {
   return db_fetch_object(db_query("SELECT * FROM {git_commits} WHERE hash='%s'", $hash));
+
 }
 
 function _git_get_repo($repoid) {
@@ -207,12 +220,6 @@ function git_admin_repo_form() {
     '#required' => true,
   );
 
-  $form['url'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Url'),
-    '#description' => t('Unique machine readable name, for the url'),
-    '#required' => true,
-  );
 
   return $form;
 }
@@ -220,7 +227,6 @@ function git_admin_repo_form() {
 function git_admin_add_form_submit($form_id, &$form_state) {
   $repo->title = $form_state['values']['title'];
   $repo->location = $form_state['values']['location'];
-  $repo->url = $form_state['values']['url'];
   drupal_write_record('git_repos', $repo);
   drupal_goto('admin/settings/git');
 }
