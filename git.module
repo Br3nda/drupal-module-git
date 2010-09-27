@@ -22,7 +22,12 @@ function git_commit_info() {
   return t('A commit in a git repo');
 }
 
-
+/**
+ * Implementation of hook_perm().
+ */
+function git_perm() {
+  return array('Edit git repos');
+}
 
 /**
  * Implementation of hook_nodeapi().
