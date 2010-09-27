@@ -18,9 +18,14 @@ function git_nodeinfo() {
 }
 
 
+function git_commit_info() {
+  return t('A commit in a git repo');
+}
+
+
 
 /**
- * I
+ * Implementation of hook_nodeapi().
  */
 function git_nodeapi(&$node, $op, $teaser, $page) {
   if (!isset($node->nid)) {
