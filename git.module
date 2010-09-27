@@ -38,7 +38,7 @@ function git_admin() {
   $result = db_query("SELECT * FROM {git_repos}");
   $rows = array();
   while($g = db_fetch_object($result)) {
-    $rows[] = $g->title;
+    $rows[] = array($g->title);
   }
   $output .= theme('table', $headers, $rows);
   return $output;
