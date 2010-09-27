@@ -43,9 +43,13 @@ function git_commit_view($node, $teaser, $page) {
   $node->content['repos'] = array(
     '#value' => theme('item_list', $repo_list),
   );
+  drupal_set_message($repos[0]->location);
+  $git = git_get_git($repos[0]);
+  $show = $git->getCommand('show');
+  $show->addArgument($commit->hash);
+  $result = $show->execute();
 
-  $git = git_get_git($repos[0]->location);
-//   $node->content['diff']
+  $node->content['show'] = array('#value' => nl2br($result));
   return $node;
 }
 
