@@ -15,18 +15,69 @@ function git_menu() {
   $items['admin/settings/git'] = array(
     'type' => MENU_NORMAL_ITEM,
     'page callback' => 'git_admin',
-    'access arguments' => array('Edit git archives'),
+    'access arguments' => array('Edit git repos'),
     'title' => 'Git',
+  );
+  $items['admin/settings/git/add'] = array(
+    'type' => MENU_NORMAL_ITEM,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('git_admin_add_form'),
+    'access arguments' => array('Edit git repos'),
+    'title' => 'Add'
   );
   return $items;
 }
 
 function git_admin() {
+  $output = '';
+
+
+  $output .= l('Add git repo', 'admin/settings/git/add');
+
   $headers = array('Title');
   $result = db_query("SELECT * FROM {git_repos}");
   $rows = array();
   while($g = db_fetch_object($result)) {
     $rows[] = $g->title;
   }
-  return theme('table', $headers, $rows);
+  $output .= theme('table', $headers, $rows);
+  return $output;
+}
+
+function git_admin_add_form() {
+  $form = git_admin_repo_form();
+  $form['save'] = array('#type' => 'submit', '#value' => t('Save'));
+  return $form;
+}
+
+function git_admin_repo_form() {
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#required' => true,
+  );
+
+  $form['location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Location'),
+    '#description' => t('Path to checkout on server\'s filesystem'),
+    '#required' => true,
+  );
+
+  $form['url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Url'),
+    '#description' => t('Unique machine readable name, for the url'),
+    '#required' => true,
+  );
+
+  return $form;
+}
+
+function git_admin_add_form_submit($form_id, &$form_state) {
+  $repo->title = $form_state['values']['title'];
+  $repo->location = $form_state['values']['location'];
+  $repo->url = $form_state['values']['url'];
+  drupal_write_record('git_repos', $repo);
+  drupal_goto('admin/settings/git');
 }
