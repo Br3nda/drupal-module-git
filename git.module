@@ -3,9 +3,10 @@
  * @file Git module, imports git history into drupal
  */
 
-function git_nodeinfo() {
+function git_node_info() {
+//   drupal_set_message(__FUNCTION__);
   return array(
-    'git_commit' => array(
+    'gitcommit' => array(
       'name' => t('Git Commit'),
       'module' => 'git',
       'description' => t("A commit on a git repo"),
@@ -18,7 +19,7 @@ function git_nodeinfo() {
 }
 
 
-function git_commit_info() {
+function gitcommit_info() {
   return t('A commit in a git repo');
 }
 
@@ -29,11 +30,14 @@ function git_perm() {
   return array('Edit git repos');
 }
 
+
 /**
  * Implementation of hook_nodeapi().
  */
 function git_nodeapi(&$node, $op, $teaser, $page) {
-  if (!isset($node->nid)) {
+//   drupal_set_message(__FUNCTION__);
+// 
+  if (!preg_match('!^git!', $node->type)) {
     return;
   }
 
@@ -41,25 +45,26 @@ function git_nodeapi(&$node, $op, $teaser, $page) {
     case 'delete':
       //delete where there is no node.. THIS WON'T SCALE
       //how to get around drupal's lack of referential integrity?
-      db_query('DELETE FROM {git_commits} WHERE nid =%d);', $node->nid);
+      db_query('DELETE FROM {git_commits} WHERE nid =%d;', $node->nid);
     break;
     case 'view':
-      if($node->type == 'git_commit') {
-	git_commit_view($node, $teaser, $page);
+      if($node->type == 'gitcommit') {
+	gitcommit_view($node, $teaser, $page);
       }
     break;
   }
 }
 
-function git_commit_view($node, $teaser, $page) {
+function gitcommit_view($node, $teaser, $page) {
 //   drupal_set_message(__FUNCTION__);
   $commit = git_get_commit_from_nid($node->nid);
-  $repos = get_repos_from_commit($commit->commitid);
+  $repos = git_get_repos_from_commit($commit->commitid);
   if (!count($repos)) {
     drupal_set_message(t("This commit is not in any repo we know of"), 'error');
   }
   else {
-//     drupal_set_message(print_r($repos, 1));
+
+    drupal_set_message(print_r($repos, 1));
 
     foreach($repos as $r) {
       $repo_list[] = print_r($r, 1); //l(check_plain($r->title), 'gitrepo/'. $r->repoid);
@@ -81,7 +86,7 @@ function git_commit_view($node, $teaser, $page) {
   return $node;
 }
 
-function get_repos_from_commit($commitid) {
+function git_get_repos_from_commit($commitid) {
   $result = db_query("SELECT * FROM {git_commit_repo} gcr INNER JOIN {git_repos} gr ON gr.repoid = gcr.repoid WHERE commitid=%d", $commitid);
   $repos = array();
   while($repos[] = db_fetch_object($result));
@@ -89,6 +94,10 @@ function get_repos_from_commit($commitid) {
 }
 
 function git_get_git($repo) {
+  if (!$repo->location) {
+    drupal_set_message("Invalid repo", 'error');
+    return false;
+  }
   try {
     //load the pear module
     require_once 'VersionControl/Git.php';
@@ -103,13 +112,13 @@ function git_get_git($repo) {
   
 }
 
-function git_commit_form(&$form_state, $node) {
-  $form = array();
-  $form['repo'] = array(
-    '#type' => 'select',
-  );
-  return $form;
-}
+// function gitcommit_form(&$form_state, $node) {
+//   $form = array();
+//   $form['repo'] = array(
+//     '#type' => 'select',
+//   );
+//   return $form;
+// }
 
 /**
  * Implementation of hook_menu()
@@ -180,9 +189,8 @@ function git_parse_batch($repo, &$context) {
     $context['sandbox']['max'] = $total_commits;
     error_log("=============== Total commits = $total_commits");
   }
-// 
-//   try {
-//   //load the pear module
+
+  //load the pear module
   require_once 'VersionControl/Git.php';
   $git = new VersionControl_Git($repo->location);
 
@@ -190,23 +198,23 @@ function git_parse_batch($repo, &$context) {
   $offset = $context['sandbox']['progress'];
   error_log("getting $num_per_run commits, offset $offset");
   $commits = $git->getCommits('master', $num_per_run, $offset);
-// 
+
   foreach($commits as $c) {
-    unset($node);
+    unset($node); unset($gerund);
     error_log($c->getMessage());
 
     $context['sandbox']['progress']++;
     $existing = _git_get_commit($c->getTree());
 
-
-// 
     if ($existing) {
       error_log("Existing node: node/". $existing->nid);
       $gerund->commitid = $existing->commitid;
+      $gerund->repoid = $repoid;
+      drupal_write_record('git_commit_repo', $gerund);
     }
     else {
       $node->title = $c->getTree();
-      $node->type = 'git_commit';
+      $node->type = 'gitcommit';
       $node->created = $c->getCreatedAt();
 
       //TODO somethign more sensible here
@@ -224,16 +232,18 @@ function git_parse_batch($repo, &$context) {
 
       $commit->created_at = strtotime($c->getCreatedAt());
       drupal_write_record('git_commits', $commit);
+      
+      error_log(print_r($commit, 1));
       error_log("New node: node/". $node->nid);
- 
-      $gerund->commitid = db_last_insert_id('git_commits');
+
+      $gerund->commitid = $commit->commitid;
+      $gerund->repoid = $repo->repoid;
+      drupal_write_record('git_commit_repo', $gerund);
+
     }
 
 //     error_log('created: '. $c->getCreatedAt());
 
-    $gerund->repoid = $repoid;
- 
-    drupal_write_record('git_commit_repo', $gerund);
  
     $context['results'][] = $c->getTree() . ' - ' . check_plain($c->getMessage());    
     sleep(4);
@@ -312,9 +322,9 @@ function git_admin_repo_form() {
   return $form;
 }
 
-function git_admin_add_form_submit($form_id, &$form_state) {
-  $repo->title = $form_state['values']['title'];
-  $repo->location = $form_state['values']['location'];
-  drupal_write_record('git_repos', $repo);
-  drupal_goto('admin/settings/git');
-}
+// function git_admin_add_form_submit($form_id, &$form_state) {
+//   $repo->title = $form_state['values']['title'];
+//   $repo->location = $form_state['values']['location'];
+//   drupal_write_record('git_repos', $repo);
+//   drupal_goto('admin/settings/git');
+// }
