@@ -50,3 +50,4 @@ function git_schema() {
 
   return $schema;
 }
+

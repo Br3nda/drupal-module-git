@@ -34,20 +34,35 @@ function git_nodeapi(&$node, $op, $teaser, $page) {
 
 function git_commit_view($node, $teaser, $page) {
   drupal_set_message(__FUNCTION__);
-  $repo = git_get_commit_from_nid($node->nid);
-//   $git = git_get_git($repoid);
+  $commit = git_get_commit_from_nid($node->nid);
+  $repos = get_repos_from_commit($commit->commitid);
+  drupal_set_message(print_r($repos, 1));
+  foreach($repos as $r) {
+    $repo_list[] = l(check_plain($r->title), 'gitrepo/'. $r->repoid);
+  }
+  $node->content['repos'] = array(
+    '#value' => theme('item_list', $repo_list),
+  );
+
+  $git = git_get_git($repos[0]->location);
 //   $node->content['diff']
   return $node;
 }
 
+function get_repos_from_commit($commitid) {
+  $result = db_query("SELECT * FROM {git_commit_repo} gcr INNER JOIN {git_repos} gr ON gr.repoid = gcr.repoid WHERE commitid=%d", $commitid);
+  $repos = array();
+  while($repos[] = db_fetch_object($result));
+  return $repos;
+}
 
 function git_get_git($repo) {
   try {
     //load the pear module
     require_once 'VersionControl/Git.php';
-    $git = new VersionControl_Git_Util_Command($repo->location);
-    return $git;
+    $git = new VersionControl_Git($repo->location);
 
+    return $git;
   }
   catch (Exception $e) {
     drupal_set_message($e->getMessage(), 'error');
