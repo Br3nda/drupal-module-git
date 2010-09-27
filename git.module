@@ -36,9 +36,10 @@ function git_menu() {
   return $items;
 }
 
-function git_parse_now($grid) {
-  $repo = _git_get_repo($grid);
+function git_parse_now($repoid) {
+  $repo = _git_get_repo($repoid);
   if (!$repo) {
+    drupal_set_message("Invalid repo", 'error');
     return '';
   }
 
@@ -49,7 +50,26 @@ function git_parse_now($grid) {
   $commits = $git->getCommits();
 
   foreach($commits as $c) {
+    unset($node);
     $existing = _git_get_commit($c->getTree());
+
+    if ($existing) {
+      drupal_set_message("Existing node:" . l($c->getTree(), 'node/'. $existing->nid));
+    }
+    else {
+      $node->title = $c->getTree();
+      $node->type = 'git_commit';
+      $node->created = $c->getCreatedAt();
+
+      node_save($node);
+      $commit->hash = $c->getTree();
+      $commit->author = $c->getAuthor();
+      $commit->message = $c->getMessage();
+      
+      $commit->nid = $node->nid;
+      drupal_write_record('git_commits', $commit);
+      drupal_set_message("New node:". l($c->getTree(), 'node/'. $node->nid));
+    }
   }
 
   }
@@ -63,8 +83,8 @@ function _git_get_commit($hash) {
   return db_fetch_object(db_query("SELECT * FROM {git_commits} WHERE hash='%s'", $hash));
 }
 
-function _git_get_repo($grid) {
-  return db_fetch_object(db_query("SELECT * FROM {git_repos} WHERE grid=%d", $grid));
+function _git_get_repo($repoid) {
+  return db_fetch_object(db_query("SELECT * FROM {git_repos} WHERE repoid=%d", $repoid));
 }
 
 function git_admin() {
@@ -78,8 +98,8 @@ function git_admin() {
   $rows = array();
   while($g = db_fetch_object($result)) {
     $rows[] = array(
-      l($g->title, 'admin/settings/git/edit/'. $g->grid),
-      l(t('Parse now'), 'admin/settings/git/parsenow/'. $g->grid),
+      l($g->title, 'admin/settings/git/edit/'. $g->repoid),
+      l(t('Parse now'), 'admin/settings/git/parsenow/'. $g->repoid),
     );
   }
   $output .= theme('table', $headers, $rows);
