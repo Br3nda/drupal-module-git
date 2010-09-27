@@ -38,7 +38,29 @@ function git_menu() {
 
 function git_parse_now($grid) {
   $repo = _git_get_repo($grid);
-  return print_r($repo, 1);
+  if (!$repo) {
+    return '';
+  }
+
+  try {
+  //load the pear module
+  require_once 'VersionControl/Git.php';
+  $git = new VersionControl_Git($repo->location);
+  $commits = $git->getCommits();
+
+  foreach($commits as $c) {
+    $existing = _git_get_commit($c->getTree());
+  }
+
+  }
+  catch (Exception $e) {
+    return $e->getMessage();
+  }
+  return '';
+}
+
+function _git_get_commit($hash) {
+  return db_fetch_object(db_query("SELECT * FROM {git_commits} WHERE hash='%s'", $hash));
 }
 
 function _git_get_repo($grid) {
