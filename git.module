@@ -62,13 +62,13 @@ function git_commit_view($node, $teaser, $page) {
 //     drupal_set_message(print_r($repos, 1));
 
     foreach($repos as $r) {
-      $repo_list[] = l(check_plain($r->title), 'gitrepo/'. $r->repoid);
+      $repo_list[] = print_r($r, 1); //l(check_plain($r->title), 'gitrepo/'. $r->repoid);
     }
     $node->content['repos'] = array(
       '#value' => theme('item_list', $repo_list),
     );
 
-    drupal_set_message($repos[0]->location);
+// //     drupal_set_message($repos[0]->location);
     $git = git_get_git($repos[0]);
   }
   if ($git) {
@@ -104,7 +104,11 @@ function git_get_git($repo) {
 }
 
 function git_commit_form(&$form_state, $node) {
-  
+  $form = array();
+  $form['repo'] = array(
+    '#type' => 'select',
+  );
+  return $form;
 }
 
 /**
@@ -140,24 +144,64 @@ function git_get_commit_from_nid($nid) {
 }
 
 function git_parse_now($repoid) {
-  $repo = _git_get_repo($repoid);
-  if (!$repo) {
-    drupal_set_message("Invalid repo", 'error');
-    return '';
+  $result = db_query("SELECT * FROM {git_repos}");
+  while($r = db_fetch_object($result)) {
+    $operations[] = array('git_parse_batch', array($r));
   }
 
-  try {
-  //load the pear module
+  $batch = array(
+    'title' => t('Importing Commits'),
+    'operations' => $operations,
+    'finished' => 'git_parse_batch_finished.',
+//     'file' => 'path_to_file_containing_myfunctions',
+  );
+  batch_set($batch);
+
+  // only needed if not inside a form _submit handler :
+  batch_process();
+}
+
+function git_count_commits($repo, $branch='master') {
+  $git = git_get_git($repo);
+  $command = $git->getCommand('log');
+  $command->setOption('format' , 'oneline');
+  $log = $command->execute();
+  return substr_count($log, "\n");
+}
+
+function git_parse_batch($repo, &$context) {
+  $git = git_get_git($repo);
+  error_log('==================================');
+  if (empty($context['sandbox'])) {
+    $context['sandbox']['progress'] = 1;
+//     $context['sandbox']['offset'] = 0;
+    $total_commits = git_count_commits($repo);
+    
+    $context['sandbox']['max'] = $total_commits;
+    error_log("=============== Total commits = $total_commits");
+  }
+// 
+//   try {
+//   //load the pear module
   require_once 'VersionControl/Git.php';
   $git = new VersionControl_Git($repo->location);
-  $commits = $git->getCommits();
 
+  $num_per_run = 2;
+  $offset = $context['sandbox']['progress'];
+  error_log("getting $num_per_run commits, offset $offset");
+  $commits = $git->getCommits('master', $num_per_run, $offset);
+// 
   foreach($commits as $c) {
     unset($node);
+    error_log($c->getMessage());
+
+    $context['sandbox']['progress']++;
     $existing = _git_get_commit($c->getTree());
 
+
+// 
     if ($existing) {
-      drupal_set_message("Existing node:" . l($c->getTree(), 'node/'. $existing->nid));
+      error_log("Existing node: node/". $existing->nid);
       $gerund->commitid = $existing->commitid;
     }
     else {
@@ -174,22 +218,45 @@ function git_parse_now($repoid) {
       $commit->hash = $c->getTree();
       $commit->author = $c->getAuthor();
       $commit->message = $c->getMessage();
-      
       $commit->nid = $node->nid;
-      drupal_write_record('git_commits', $commit);
-      drupal_set_message("New node:". l($c->getTree(), 'node/'. $node->nid));
 
+      
+
+      $commit->created_at = strtotime($c->getCreatedAt());
+      drupal_write_record('git_commits', $commit);
+      error_log("New node: node/". $node->nid);
+ 
       $gerund->commitid = db_last_insert_id('git_commits');
     }
+
+//     error_log('created: '. $c->getCreatedAt());
+
     $gerund->repoid = $repoid;
-
+ 
     drupal_write_record('git_commit_repo', $gerund);
+ 
+    $context['results'][] = $c->getTree() . ' - ' . check_plain($c->getMessage());    
+    sleep(4);
   }
 
+  if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
+    $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
   }
-  catch (Exception $e) {
-    return $e->getMessage();
+}
+
+function git_parse_batch_finished() {
+  if ($success) {
+    $message = format_plural(count($results), 'One post processed.', '@count posts processed.');
   }
+  else {
+    $message = t('Finished with an error.');
+  }
+  drupal_set_message($message);
+  // Providing data for the redirected page is done through $_SESSION.
+  foreach ($results as $result) {
+    $items[] =  $result;
+  }
+  $_SESSION['my_batch_results'] = $items;
   return '';
 }
 

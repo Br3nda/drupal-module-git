@@ -6,8 +6,7 @@ function git_install() {
 
 function git_uninstall() {
   drupal_uninstall_schema('git');
-  $ret = update_sql("DELETE FROM {node} WHERE type='git_commits'");
-  return $ret;
+  db_query("DELETE FROM {node} WHERE type='git_commit'");
 }
 
 function git_schema() {
@@ -25,7 +24,7 @@ function git_schema() {
       'commitid' => array('type' => 'serial'),
       'hash' => array('type' => 'text'),
       'author' => array('type' => 'text'),
-      'date' => array('type' => 'int'),
+      'created_at' => array('type' => 'int'),
       'message' => array('type' => 'text'),
       'nid' => array('type' => 'int'),
     ),
@@ -49,5 +48,10 @@ function git_schema() {
     );
 
   return $schema;
+}
+
+function git_update_6002() {
+  db_drop_field($ret, 'git_commits', 'date');
+  db_add_field($ret, 'git_commits', 'created_at', array('type' => 'int'));
 }
 
