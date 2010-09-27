@@ -1,0 +1,32 @@
+<?php
+
+function git_nodeinfo() {
+  return array(
+    'git_commit' => array(
+      'name' => t('Git Commit'),
+      'module' => 'git',
+      'description' => t("A commit on a git repo"),
+      'has_body' => FALSE,
+      )
+    );
+}
+
+function git_menu() {
+  $items['admin/settings/git'] = array(
+    'type' => MENU_NORMAL_ITEM,
+    'page callback' => 'git_admin',
+    'access arguments' => array('Edit git archives'),
+    'title' => 'Git',
+  );
+  return $items;
+}
+
+function git_admin() {
+  $headers = array('Title');
+  $result = db_query("SELECT * FROM {git_repos}");
+  $rows = array();
+  while($g = db_fetch_object($result)) {
+    $rows[] = $g->title;
+  }
+  return theme('table', $headers, $rows);
+}

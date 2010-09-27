@@ -1,0 +1,22 @@
+<?php
+
+function git_install() {
+  drupal_install_schema('git');
+}
+
+function git_uninstall() {
+  drupal_uninstall_schema('git');
+}
+
+function git_schema() {
+  $schema['git_repos'] = array(
+    'fields' => array(
+      'grid' => array('type' => 'serial'),
+      'title' => array('type' => 'text', 'not null' => TRUE, 'unique' => TRUE),
+      'url' => array('type' => 'text', 'not null' => TRUE, 'unique' => TRUE),
+      'location' => array('type' => 'text', 'not null' => TRUE),
+    ),
+    'primary key' => array('grid'),
+  );
+  return $schema;
+}
