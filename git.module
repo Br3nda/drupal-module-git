@@ -52,13 +52,24 @@ function git_nodeapi(&$node, $op, $teaser, $page) {
 	gitcommit_view($node, $teaser, $page);
       }
     break;
+    case 'load':
+      if($node->type == 'gitcommit') {
+        gitcommit_load($node);
+      }
+    break;
   }
+}
+
+function gitcommit_load(&$node) {
+  $node->commit = git_get_commit_from_nid($node->nid);
+  $node->repos = git_get_repos_from_commit($node->commit->commitid);
+
 }
 
 function gitcommit_view($node, $teaser, $page) {
 //   drupal_set_message(__FUNCTION__);
   $commit = git_get_commit_from_nid($node->nid);
-  $repos = git_get_repos_from_commit($commit->commitid);
+  $repos = $node->repos;
   if (!count($repos)) {
     drupal_set_message(t("This commit is not in any repo we know of"), 'error');
   }
@@ -76,13 +87,23 @@ function gitcommit_view($node, $teaser, $page) {
 // //     drupal_set_message($repos[0]->location);
     $git = git_get_git($repos[0]);
   }
-  if ($git) {
-    $show = $git->getCommand('show');
-    $show->addArgument($commit->hash);
-    $result = $show->execute();
 
-    $node->content['show'] = array('#value' => nl2br($result));
-  }
+  $node->content['author'] = array(
+    '#value' => check_plain($node->commit->author)
+  );
+
+  $node->content['message'] = array(
+    '#value' => check_plain($node->commit->message)
+  );
+
+
+//   if ($git) {
+//     $show = $git->getCommand('show');
+//     $show->setArgument($commit->hash);
+//     $result = $show->execute();
+
+//     $node->content['show'] = array('#value' => nl2br($result));
+//   }
   return $node;
 }
 
